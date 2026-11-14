@@ -13,6 +13,10 @@
 [![UI](https://img.shields.io/badge/UI-LVGL%209.5%20(320x170)-8A2BE2?style=for-the-badge)](https://lvgl.io/)
 [![License](https://img.shields.io/badge/License-MIT-22C55E?style=for-the-badge)](#license)
 
+<br />
+
+<img src="share/images/cardputerzero-wifi-banner.jpg" width="680" alt="CardputerZero Wi-Fi USB Manager in Action" />
+
 </div>
 
 ---
