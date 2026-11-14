@@ -43,8 +43,8 @@ A precompiled ARM64 Debian package (`artifacts/wifi-manager_0.1.0-m5stack1_arm64
 Or manually with `scp` + `dpkg`:
 
 ```bash
-scp artifacts/wifi-manager_0.1.0-m5stack1_arm64.deb adrianomoraes@<cardputer-ip>:/tmp/
-ssh adrianomoraes@<cardputer-ip> "sudo dpkg -i /tmp/wifi-manager_0.1.0-m5stack1_arm64.deb"
+scp artifacts/wifi-manager_0.1.0-m5stack1_arm64.deb <ssh-user>@<cardputer-ip>:/tmp/
+ssh <ssh-user>@<cardputer-ip> "sudo dpkg -i /tmp/wifi-manager_0.1.0-m5stack1_arm64.deb"
 ```
 
 ### Option B: Install Directly on the CardputerZero

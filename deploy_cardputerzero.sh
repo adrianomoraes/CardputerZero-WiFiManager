@@ -4,8 +4,12 @@
 # SPDX-License-Identifier: MIT
 set -euo pipefail
 
-HOST="${1:-${CARDPUTER_ZERO_HOST:-192.168.1.210}}"
-SSH_USER="${2:-${CARDPUTER_ZERO_USER:-adrianomoraes}}"
+HOST="${1:-${CARDPUTER_ZERO_HOST:-}}"
+SSH_USER="${2:-${CARDPUTER_ZERO_USER:-m5stack}}"
+if [ -z "$HOST" ]; then
+    echo "Usage: ./deploy_cardputerzero.sh <cardputer-ip> [ssh-user]"
+    exit 2
+fi
 TARGET="${SSH_USER}@${HOST}"
 REMOTE_BUILD_DIR="/home/${SSH_USER}/CardputerZero-WiFiManager-build"
 

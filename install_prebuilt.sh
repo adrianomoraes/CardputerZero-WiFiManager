@@ -32,7 +32,7 @@ fi
 
 # Otherwise install remotely over SSH to a CardputerZero:
 HOST="${1:-${CARDPUTER_ZERO_HOST:-}}"
-SSH_USER="${2:-${CARDPUTER_ZERO_USER:-adrianomoraes}}"
+SSH_USER="${2:-${CARDPUTER_ZERO_USER:-m5stack}}"
 if [ -z "$HOST" ]; then
     echo "Usage:"
     echo "  On CardputerZero:   ./install_prebuilt.sh"
