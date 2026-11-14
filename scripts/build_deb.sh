@@ -11,7 +11,7 @@ REMOTE_BUILD_DIR="/home/${SSH_USER}/CardputerZero-WiFiManager-build"
 VERSION="0.1.0"
 DEB_NAME="wifi-manager_${VERSION}-m5stack1_arm64.deb"
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 mkdir -p artifacts dist
 
 echo "Packaging ${DEB_NAME} on ${TARGET}..."
