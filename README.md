@@ -6,7 +6,7 @@
 
 **Cyberpunk-styled LVGL 9.5 utility for M5Stack CardputerZero (`APPLaunch`) to manage external USB Wi-Fi adapters and built-in wireless interfaces.**
 
-*Created by **Adriano Dias Moraes** (`@adrianomoraes`)*
+*Created by **Adriano Dias Moraes** (`@adrianomoraes`) using Gemini Argon 4*
 
 [![Platform](https://img.shields.io/badge/Platform-M5Stack%20CardputerZero-00F0FF?style=for-the-badge)](https://github.com/adrianomoraes/CardputerZero-WiFiManager)
 [![Architecture](https://img.shields.io/badge/Arch-ARM64%20(AArch64)-FF007F?style=for-the-badge)](https://github.com/adrianomoraes/CardputerZero-WiFiManager)
@@ -19,7 +19,7 @@
 
 ## Overview
 
-When plugging an external USB Wi-Fi dongle (such as a MediaTek `mt7601u`, Realtek, or Alfa adapter) into the **M5Stack CardputerZero**, Linux exposes multiple wireless interfaces (`wlan1`, `wlan2`, alongside the built-in Broadcom `wlan0`).
+When plugging an external USB Wi-Fi dongle (such as a MediaTek `mt7601u`, Realtek, or Alfa adapters) into the **M5Stack CardputerZero**, Linux exposes multiple wireless interfaces (`wlan1`, `wlan2`, alongside the built-in Broadcom `wlan0`).
 
 **CardputerZero Wi-Fi USB Manager** (`WiFi USB` in `APPLaunch`) provides a native, fast 320 × 170 graphical interface designed specifically for the CardputerZero's physical TCA8418 keyboard and MIPI/ST7789 LCD (`/dev/fb_lcd`) so you can:
 
