@@ -1,0 +1,27 @@
+{
+  "name": "WiFiManager",
+  "package": "wifi-manager",
+  "package_name": "wifi-manager",
+  "version": "0.1.0",
+  "app_name": "WiFi USB",
+  "bin_name": "M5CardputerZero-WiFiManager",
+  "description": "CardputerZero USB & built-in Wi-Fi adapter configuration utility.",
+  "maintainer": "Adriano Dias Moraes <adriano.moraes@gmail.com>",
+  "homepage": "https://github.com/adrianomoraes/CardputerZero-WiFiManager",
+  "runtime": "legacy-deb-only",
+  "lvgl_version": "9.5",
+  "caps": ["keyboard", "network", "filesystem"],
+  "store": {
+    "summary": "Select USB/built-in Wi-Fi adapters, scan networks, and connect with passwords.",
+    "categories": ["System", "Network"],
+    "license": "MIT",
+    "source_repo": "https://github.com/adrianomoraes/CardputerZero-WiFiManager",
+    "icon": "share/images/wifi-manager.png",
+    "screenshots": [],
+    "permissions": {
+      "keyboard_input": true,
+      "network": true,
+      "filesystem": true
+    }
+  }
+}

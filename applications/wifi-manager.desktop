@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=WiFi USB
+Comment=Configure USB & Built-in Wi-Fi Adapters
+Exec=/usr/share/APPLaunch/bin/M5CardputerZero-WiFiManager
+Terminal=false
+Icon=share/images/wifi-manager.png
+Type=Application
+Categories=Network;System;
