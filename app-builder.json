@@ -2,7 +2,7 @@
   "name": "WiFiManager",
   "package": "wifi-manager",
   "package_name": "wifi-manager",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "app_name": "WiFi USB",
   "bin_name": "M5CardputerZero-WiFiManager",
   "description": "CardputerZero USB & built-in Wi-Fi adapter configuration utility.",

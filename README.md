@@ -8,10 +8,10 @@
 
 *Created by **Adriano Dias Moraes** (`@adrianomoraes`) using Gemini Argon 4*
 
+[![Version](https://img.shields.io/badge/Version-v0.1.1-22C55E?style=for-the-badge)](CHANGELOG.md)
 [![Platform](https://img.shields.io/badge/Platform-M5Stack%20CardputerZero-00F0FF?style=for-the-badge)](https://github.com/adrianomoraes/CardputerZero-WiFiManager)
 [![Architecture](https://img.shields.io/badge/Arch-ARM64%20(AArch64)-FF007F?style=for-the-badge)](https://github.com/adrianomoraes/CardputerZero-WiFiManager)
 [![UI](https://img.shields.io/badge/UI-LVGL%209.5%20(320x170)-8A2BE2?style=for-the-badge)](https://lvgl.io/)
-[![License](https://img.shields.io/badge/License-MIT-22C55E?style=for-the-badge)](#license)
 
 <br />
 
@@ -36,22 +36,17 @@ When plugging an external USB Wi-Fi dongle (such as a MediaTek `mt7601u`, Realte
 
 ## Quick Install (No Recompilation Needed!)
 
-A precompiled ARM64 Debian package (`artifacts/wifi-manager_0.1.0-m5stack1_arm64.deb`) and prebuilt binary (`dist/M5CardputerZero-WiFiManager`) are included right in the repository.
+A precompiled ARM64 Debian package (`artifacts/wifi-manager_0.1.1-m5stack1_arm64.deb`) and prebuilt binary (`dist/M5CardputerZero-WiFiManager`) are included right in the repository.
 
-### Option A: One-Command Install from Your Computer (via SSH)
+### Option 1: Direct One-Line Install on the CardputerZero (Recommended)
 
-```bash
-./install_prebuilt.sh <cardputer-ip> [ssh-user]
-```
-
-Or manually with `scp` + `dpkg`:
+Run this directly inside an SSH session or terminal on your **CardputerZero**:
 
 ```bash
-scp artifacts/wifi-manager_0.1.0-m5stack1_arm64.deb <ssh-user>@<cardputer-ip>:/tmp/
-ssh <ssh-user>@<cardputer-ip> "sudo dpkg -i /tmp/wifi-manager_0.1.0-m5stack1_arm64.deb"
+curl -fsSL https://raw.githubusercontent.com/adrianomoraes/CardputerZero-WiFiManager/main/artifacts/wifi-manager_0.1.1-m5stack1_arm64.deb -o /tmp/wifi-manager.deb && sudo dpkg -i /tmp/wifi-manager.deb && systemctl --user restart APPLaunch.service
 ```
 
-### Option B: Install Directly on the CardputerZero
+### Option 2: Clone & Install Directly on the CardputerZero
 
 ```bash
 git clone https://github.com/adrianomoraes/CardputerZero-WiFiManager.git
@@ -59,7 +54,26 @@ cd CardputerZero-WiFiManager
 ./install_prebuilt.sh
 ```
 
-The package automatically installs the binary, `.desktop` launcher entry, and Cyber-Hologram icon into `/usr/share/APPLaunch/` and restarts `APPLaunch.service`.
+### Option 3: Install Remotely from Your PC / Mac over SSH
+
+*(Replace `192.168.x.x` with your CardputerZero's IP address and `pi` with your CardputerZero SSH username)*:
+
+```bash
+./install_prebuilt.sh 192.168.x.x pi
+```
+
+---
+
+## Troubleshooting: Repairing a Broken `v0.1.0` AppStore Install
+
+> [!NOTE]
+> In `v0.1.0`, the Debian package `postinst` script ran `systemctl --user restart APPLaunch.service`. When installed from the on-device **CardputerZero AppStore**, restarting `APPLaunch.service` terminated the AppStore child process mid-installation, leaving `dpkg` in an interrupted state (`dpkg --configure -a` required).
+>
+> **`v0.1.1` fixes this completely.** If your device is currently blocked by the `v0.1.0` package repair message, run this one-liner on your CardputerZero terminal/SSH to repair `dpkg` and install `v0.1.1`:
+
+```bash
+sudo rm -f /var/lib/dpkg/info/wifi-manager.postinst && sudo dpkg --configure -a && curl -fsSL https://raw.githubusercontent.com/adrianomoraes/CardputerZero-WiFiManager/main/artifacts/wifi-manager_0.1.1-m5stack1_arm64.deb -o /tmp/wifi-manager.deb && sudo dpkg -i /tmp/wifi-manager.deb && systemctl --user restart APPLaunch.service
+```
 
 ---
 
@@ -84,10 +98,13 @@ Designed for one-handed navigation on the CardputerZero keyboard without needing
 
 ```text
 CardputerZero-WiFiManager/
+├── CHANGELOG.md                      # Release history & version notes
+├── VERSION                           # Current semantic version (0.1.1)
 ├── applications/
 │   └── wifi-manager.desktop          # APPLaunch desktop entry
 ├── artifacts/
-│   └── wifi-manager_0.1.0-m5stack1_arm64.deb  # Ready-to-install ARM64 Debian package
+│   ├── wifi-manager_0.1.1-m5stack1_arm64.deb  # Ready-to-install ARM64 Debian package
+│   └── wifi-manager_latest_arm64.deb          # Latest stable ARM64 Debian package
 ├── dist/
 │   └── M5CardputerZero-WiFiManager   # Precompiled ARM64 executable
 ├── main/
@@ -100,7 +117,7 @@ CardputerZero-WiFiManager/
 │       ├── main.cpp                  # LVGL 9.5 320x170 UI & marquee views
 │       └── wifi_backend.cpp          # USB/built-in adapter discovery & nmcli runner
 ├── scripts/
-│   ├── build_deb.sh                  # Builds the .deb package on the device
+│   ├── build_deb.sh                  # Pure-Python local .deb package builder
 │   └── generate_icon.py              # Fallback procedural icon generator
 ├── share/images/
 │   └── wifi-manager.png              # 100x100 RGBA Cyber-Hologram Wi-Fi icon
@@ -119,10 +136,10 @@ If you modify the C++ source code (`main/src/main.cpp` or `main/src/wifi_backend
 CARDPUTER_ZERO_PASSWORD='<your-ssh-password>' ./deploy_cardputerzero.sh <cardputer-ip> <ssh-user>
 ```
 
-To rebuild the `.deb` package after a source change:
+To rebuild the `.deb` package locally (no SSH needed):
 
 ```bash
-CARDPUTER_ZERO_PASSWORD='<your-ssh-password>' ./scripts/build_deb.sh <cardputer-ip> <ssh-user>
+./scripts/build_deb.sh
 ```
 
 ---

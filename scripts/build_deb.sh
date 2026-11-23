@@ -2,122 +2,142 @@
 # CardputerZero Wi-Fi USB Manager - Debian (.deb) Package Builder
 # Author: Adriano Dias Moraes <adriano.moraes@gmail.com>
 # SPDX-License-Identifier: MIT
+#
+# Builds the arm64 .deb package locally using Python (tarfile + lzma + GNU ar format)
+# from the prebuilt dist/M5CardputerZero-WiFiManager binary, so no SSH connection or
+# dpkg-deb binary is required on macOS/Linux.
 set -euo pipefail
 
-HOST="${1:-${CARDPUTER_ZERO_HOST:-}}"
-SSH_USER="${2:-${CARDPUTER_ZERO_USER:-m5stack}}"
-if [ -z "$HOST" ]; then
-    echo "Usage: ./scripts/build_deb.sh <cardputer-ip> [ssh-user]"
-    exit 2
-fi
-TARGET="${SSH_USER}@${HOST}"
-REMOTE_BUILD_DIR="/home/${SSH_USER}/CardputerZero-WiFiManager-build"
-VERSION="0.1.0"
+cd "$(dirname "$0")/.."
+VERSION="$(tr -d ' \t\r\n' < VERSION)"
 DEB_NAME="wifi-manager_${VERSION}-m5stack1_arm64.deb"
 
-cd "$(dirname "$0")/.."
-mkdir -p artifacts dist
+mkdir -p artifacts
 
-echo "Packaging ${DEB_NAME} on ${TARGET}..."
+if [ ! -f "dist/M5CardputerZero-WiFiManager" ]; then
+    echo "Error: dist/M5CardputerZero-WiFiManager not found." >&2
+    exit 1
+fi
 
-python3 - "${TARGET}" "${REMOTE_BUILD_DIR}" "${VERSION}" "${DEB_NAME}" "${CARDPUTER_ZERO_PASSWORD:-}" <<'PYEOF'
-import os, pty, select, signal, sys, time
+python3 - "${VERSION}" "artifacts/${DEB_NAME}" <<'PYEOF'
+import io
+import os
+import stat
+import sys
+import tarfile
+import time
 
-target, remote_dir, version, deb_name, password = sys.argv[1:6]
+version = sys.argv[1]
+out_deb = sys.argv[2]
+mtime = int(time.time())
 
-def run_interactive(cmd_args, timeout=300):
-    pid, fd = pty.fork()
-    if pid == 0:
-        os.execvp(cmd_args[0], cmd_args)
-    output = b""
-    sent_pw = False
-    start = time.time()
-    timed_out = False
-    while True:
-        if not timed_out and time.time() - start > timeout:
-            timed_out = True
-            try:
-                os.kill(pid, signal.SIGTERM)
-            except OSError:
-                pass
-        r, _, _ = select.select([fd], [], [], 1.0)
-        if r:
-            try:
-                data = os.read(fd, 4096)
-                if not data:
-                    break
-                sys.stdout.buffer.write(data)
-                sys.stdout.flush()
-                if not sent_pw:
-                    output += data
-                    if password and b"assword:" in output:
-                        os.write(fd, (password + "\n").encode("utf-8"))
-                        sent_pw = True
-            except OSError:
-                break
-    os.close(fd)
-    _, status = os.waitpid(pid, 0)
-    if timed_out:
-        sys.exit(124)
-    if os.WIFEXITED(status) and os.WEXITSTATUS(status) != 0:
-        sys.exit(os.WEXITSTATUS(status))
+def reset_tarinfo(ti, mode, is_dir=False):
+    ti.uid = 0
+    ti.gid = 0
+    ti.uname = "root"
+    ti.gname = "root"
+    ti.mtime = mtime
+    ti.mode = mode
+    if is_dir:
+        ti.type = tarfile.DIRTYPE
 
-remote_script = f"""
-set -e
-cd "{remote_dir}"
-PKG_ROOT="/tmp/wifi-manager-deb-stage"
-rm -rf "$PKG_ROOT"
-mkdir -p "$PKG_ROOT/DEBIAN" \
-         "$PKG_ROOT/usr/share/APPLaunch/bin" \
-         "$PKG_ROOT/usr/share/APPLaunch/applications" \
-         "$PKG_ROOT/usr/share/APPLaunch/share/images"
+def add_dir(tf, path, mode=0o755):
+    ti = tarfile.TarInfo(path)
+    reset_tarinfo(ti, mode, is_dir=True)
+    tf.addfile(ti)
 
-install -m 0755 /usr/share/APPLaunch/bin/M5CardputerZero-WiFiManager "$PKG_ROOT/usr/share/APPLaunch/bin/M5CardputerZero-WiFiManager"
-install -m 0644 /usr/share/APPLaunch/applications/wifi-manager.desktop "$PKG_ROOT/usr/share/APPLaunch/applications/wifi-manager.desktop"
-install -m 0644 /usr/share/APPLaunch/share/images/wifi-manager.png "$PKG_ROOT/usr/share/APPLaunch/share/images/wifi-manager.png"
+def add_bytes(tf, path, data_bytes, mode=0o644):
+    ti = tarfile.TarInfo(path)
+    reset_tarinfo(ti, mode, is_dir=False)
+    ti.size = len(data_bytes)
+    tf.addfile(ti, io.BytesIO(data_bytes))
 
-cat > "$PKG_ROOT/DEBIAN/control" <<'EOF'
-Package: wifi-manager
+def add_disk_file(tf, arcname, src_path, mode):
+    with open(src_path, "rb") as f:
+        data = f.read()
+    add_bytes(tf, arcname, data, mode=mode)
+
+# 1. Build control.tar.xz (NO postinst that restarts APPLaunch.service, so AppStore never crashes!)
+control_text = f"""Package: wifi-manager
 Version: {version}-m5stack1
-Section: net
+Section: utils
 Priority: optional
 Architecture: arm64
-Depends: libc6, libstdc++6, libinput10, libxkbcommon0, libudev1, network-manager
 Maintainer: Adriano Dias Moraes <adriano.moraes@gmail.com>
 Homepage: https://github.com/adrianomoraes/CardputerZero-WiFiManager
 Description: CardputerZero USB & Built-in Wi-Fi Adapter Manager
  A 320x170 LVGL 9.5 application for M5Stack CardputerZero (APPLaunch)
  to select external USB Wi-Fi adapters or built-in wireless interfaces,
  scan Wi-Fi networks, and connect with passwords.
-EOF
-
-cat > "$PKG_ROOT/DEBIAN/postinst" <<'EOF'
-#!/bin/sh
-set -e
-chmod 0755 /usr/share/APPLaunch/bin/M5CardputerZero-WiFiManager || true
-for uid_dir in /run/user/*; do
-    if [ -d "$uid_dir" ]; then
-        uid=$(basename "$uid_dir")
-        user=$(id -nu "$uid" 2>/dev/null || true)
-        if [ -n "$user" ]; then
-            su - "$user" -c "XDG_RUNTIME_DIR=$uid_dir systemctl --user restart APPLaunch.service" >/dev/null 2>&1 || true
-        fi
-    fi
-done
-exit 0
-EOF
-chmod 0755 "$PKG_ROOT/DEBIAN/postinst"
-
-dpkg-deb --root-owner-group --build "$PKG_ROOT" "/tmp/{deb_name}"
-dpkg-deb --info "/tmp/{deb_name}"
-dpkg-deb --contents "/tmp/{deb_name}"
 """
 
-run_interactive(["ssh", "-o", "StrictHostKeyChecking=accept-new", target, remote_script], timeout=120)
-run_interactive(["scp", "-o", "StrictHostKeyChecking=accept-new", f"{target}:/tmp/{deb_name}", f"artifacts/{deb_name}"], timeout=60)
-run_interactive(["scp", "-o", "StrictHostKeyChecking=accept-new", f"{target}:/usr/share/APPLaunch/bin/M5CardputerZero-WiFiManager", "dist/M5CardputerZero-WiFiManager"], timeout=60)
+postinst_text = """#!/bin/sh
+set -e
+chmod 0755 /usr/share/APPLaunch/bin/M5CardputerZero-WiFiManager 2>/dev/null || true
+exit 0
+"""
+
+control_buf = io.BytesIO()
+with tarfile.open(fileobj=control_buf, mode="w:xz", format=tarfile.GNU_FORMAT) as tf:
+    add_dir(tf, "./", 0o755)
+    add_bytes(tf, "./control", control_text.encode("utf-8"), 0o644)
+    add_bytes(tf, "./postinst", postinst_text.encode("utf-8"), 0o755)
+control_tar_xz = control_buf.getvalue()
+
+# 2. Build data.tar.xz
+data_buf = io.BytesIO()
+with tarfile.open(fileobj=data_buf, mode="w:xz", format=tarfile.GNU_FORMAT) as tf:
+    for d in [
+        "./",
+        "./usr/",
+        "./usr/share/",
+        "./usr/share/APPLaunch/",
+        "./usr/share/APPLaunch/applications/",
+        "./usr/share/APPLaunch/bin/",
+        "./usr/share/APPLaunch/share/",
+        "./usr/share/APPLaunch/share/images/",
+    ]:
+        add_dir(tf, d, 0o755)
+    add_disk_file(
+        tf,
+        "./usr/share/APPLaunch/applications/wifi-manager.desktop",
+        "applications/wifi-manager.desktop",
+        0o644,
+    )
+    add_disk_file(
+        tf,
+        "./usr/share/APPLaunch/bin/M5CardputerZero-WiFiManager",
+        "dist/M5CardputerZero-WiFiManager",
+        0o755,
+    )
+    add_disk_file(
+        tf,
+        "./usr/share/APPLaunch/share/images/wifi-manager.png",
+        "share/images/wifi-manager.png",
+        0o644,
+    )
+data_tar_xz = data_buf.getvalue()
+
+# 3. Write standard GNU ar archive (.deb)
+def ar_member(name, content):
+    hdr = f"{name:<16}{mtime:<12}{0:<6}{0:<6}{100644:<8}{len(content):<10}`\n".encode("ascii")
+    pad = b"\n" if (len(content) % 2 == 1) else b""
+    return hdr + content + pad
+
+deb_bytes = (
+    b"!<arch>\n"
+    + ar_member("debian-binary", b"2.0\n")
+    + ar_member("control.tar.xz", control_tar_xz)
+    + ar_member("data.tar.xz", data_tar_xz)
+)
+
+with open(out_deb, "wb") as f:
+    f.write(deb_bytes)
+
+print(f"Successfully packaged {out_deb} ({len(deb_bytes)} bytes)")
 PYEOF
 
-chmod 0755 dist/M5CardputerZero-WiFiManager
-echo "Built precompiled Debian package: artifacts/${DEB_NAME}"
-echo "Saved precompiled ARM64 binary:   dist/M5CardputerZero-WiFiManager"
+# Keep a stable symlink/copy at artifacts/wifi-manager_latest_arm64.deb as well
+cp -f "artifacts/${DEB_NAME}" "artifacts/wifi-manager_latest_arm64.deb"
+rm -f artifacts/wifi-manager_0.1.0-m5stack1_arm64.deb
+echo "Updated artifacts/${DEB_NAME} and artifacts/wifi-manager_latest_arm64.deb"
